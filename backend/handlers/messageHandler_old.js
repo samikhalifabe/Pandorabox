@@ -1,0 +1,335 @@
+const { findOrCreateConversation, updateConversationState } = require('../models/conversation');
+const { saveMessage } = require('../models/message');
+const { updateVehicleContactStatus, isVehicleUnavailableResponse } = require('../models/vehicle');
+const { detectPriceOffer, createPriceOfferInDB } = require('../models/priceoffer');
+const { shouldAutoRespond, generateAIResponseWithHistory, getAiConfig } = require('../services/aiResponse'); // getAiConfig needed for pauseBotOnPriceOffer
+// const { getWhatsAppClient } = require('../services/whatsapp'); // Removed import to break circular dependency
+const logger = require('../utils/logger');
+const { io } = require('../config/server'); // Import io for WebSocket emission
+const { supabase } = require('../services/database'); // Import supabase for direct DB updates
+const { sendWhatsAppMessage } = require('../services/whatsapp'); // Import sendWhatsAppMessage if needed here
+
+// Function to handle incoming messages - now accepts whatsappClient instance
+async function handleIncomingMessage(msg, whatsappClient) {
+  logger.section('TRAITEMENT MESSAGE ENTRANT');
+  logger.whatsapp.messageReceived(msg.from, msg.body);
+
+  try {
+    // Find or create the conversation
+    const initialConversation = await findOrCreateConversation(msg.from);
+    if (!initialConversation) {
+      logger.database.error('Impossible de créer la conversation pour:', msg.from);
+      return;
+    }
+
+    // Retrieve the current state and necessary info of the conversation
+    const { data: currentConversationData, error: stateFetchError } = await supabase
+        .from('conversations')
+        .select('id, state, vehicle_id, user_id') // Include 'state'
+        .eq('id', initialConversation.id)
+        .single();
+
+    if (stateFetchError || !currentConversationData) {
+        logger.error(`Error fetching state for conversation ${initialConversation.id}:`, stateFetchError);
+        return;
+    }
+
+    const conversationId = currentConversationData.id;
+    const currentConversationState = currentConversationData.state ?? 'active'; // Default to 'active' if null
+    const currentVehicleId = currentConversationData.vehicle_id;
+    const currentUserId = currentConversationData.user_id;
+
+    logger.info(`[MESSAGE HANDLER] Conversation ${conversationId} - Current state at start: ${currentConversationState}`);
+
+    // --- Save the incoming message ---
+    // Save the incoming message FIRST to get its ID
+    const savedMessage = await saveMessage(
+      conversationId,
+      msg.body,
+      false, // isFromMe
+      msg.id._serialized,
+      new Date(msg.timestamp * 1000).toISOString(),
+      currentUserId // Use the user ID from the conversation
+    );
+
+    if (!savedMessage) {
+      logger.database.error('Erreur lors de la sauvegarde du message');
+      return;
+    }
+
+    logger.database.saved('messages', savedMessage.id);
+
+    // Update the last message date for the conversation
+    await supabase
+      .from('conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', conversationId);
+
+    // Update vehicle contact status if available and if the message does not indicate unavailability
+    if (currentVehicleId && !isVehicleUnavailableResponse(msg.body)) {
+      await updateVehicleContactStatus(currentVehicleId, currentUserId);
+    }
+
+    // --- Conversation state management logic ---
+    let newState = currentConversationState;
+    let stateChangeReason = null;
+    let detectedPrice = null;
+    let priceDetectedMessageId = null;
+
+    // CHECK 1: Does the message indicate the vehicle is unavailable?
+    if (isVehicleUnavailableResponse(msg.body)) {
+      logger.info(`Message from ${msg.from} (conv ${conversationId}) detected as indicating unavailability.`);
+      // Optionally: Change state to 'completed' or another specific state if desired
+      // newState = 'completed';
+      // stateChangeReason = 'Vehicle marked as unavailable';
+      // The logic for marking the vehicle as sold is already handled in models/vehicle
+      // await markVehicleAsSoldInDB(currentVehicleId); // Call this if state change implies sold
+    } else {
+       // CHECK 2: Was a price offer made?
+       const priceOfferCheck = detectPriceOffer(msg.body);
+       const aiConfig = getAiConfig(); // Get current AI config for pause setting
+       logger.debug(`[PRICE CHECK] aiConfig.pauseBotOnPriceOffer: ${aiConfig.pauseBotOnPriceOffer}`);
+       logger.debug(`[PRICE CHECK] currentConversationState for price check: ${currentConversationState}`);
+
+       if (priceOfferCheck.detected && priceOfferCheck.price) {
+         logger.info(`[PRICE CHECK] Price offer detected (${priceOfferCheck.price} ${priceOfferCheck.currency}) by ${msg.from} in message ID: ${savedMessage?.id}.`);
+
+         // If the bot should be paused on price offer AND the current state is 'active'
+         if (aiConfig.pauseBotOnPriceOffer && currentConversationState === 'active') {
+           logger.info('[PRICE CHECK] Condition met to change state to "negotiation".');
+           newState = 'negotiation';
+           stateChangeReason = 'Price detected';
+           detectedPrice = priceOfferCheck.price;
+           priceDetectedMessageId = savedMessage?.id; // Link to the incoming message ID
+
+           // Save the price offer in the price_offers table
+           await createPriceOfferInDB(
+             conversationId,
+             currentVehicleId,
+             currentUserId,
+             savedMessage?.id, // ID of the incoming message
+             priceOfferCheck.price,
+             priceOfferCheck.currency
+           );
+
+           // Emit a WebSocket event to notify the UI
+           if (io) {
+               io.emit('price_offer_detected', {
+                 conversationId: conversationId,
+                 chatId: initialConversation.chat_id || conversationId, // For the UI
+                 vehicleId: currentVehicleId,
+                 offerId: null, // The offer ID will be in savedOffer if we return it from createPriceOfferInDB
+                 price: detectedPrice,
+                 currency: priceOfferCheck.currency,
+                 contactNumber: msg.from,
+                 messageBody: msg.body,
+                 timestamp: Date.now() / 1000
+               });
+               logger.info('price_offer_detected event emitted for conversation', conversationId);
+           }
+
+
+         } else if (currentConversationState !== 'active') {
+           logger.info(`Price offer detected, but conversation state (${currentConversationState}) is not 'active'. AI will not respond.`);
+           // AI will not respond because the state is not 'active', but we can still save the offer if desired
+           // await createPriceOfferInDB(...) if we want to save all offers even in manual/negotiation state
+         }
+       }
+    }
+
+    // Update the conversation state in the DB if the state has changed
+    if (newState !== currentConversationState) {
+      logger.info(`[STATE UPDATE] Attempting state change for conversation ${conversationId}: ${currentConversationState} -> ${newState}. Reason: ${stateChangeReason}`);
+      const { error: updateStateError } = await supabase
+        .from('conversations')
+        .update({
+          state: newState,
+          last_state_change: new Date().toISOString(),
+          state_change_reason: stateChangeReason,
+          detected_price: detectedPrice, // Can be null
+          price_detected_at: detectedPrice ? new Date().toISOString() : null, // Can be null
+          price_detected_message_id: priceDetectedMessageId // Can be null
+        })
+        .eq('id', conversationId);
+
+      if (updateStateError) {
+        logger.error(`[STATE UPDATE] Error updating conversation state ${conversationId}:`, updateStateError);
+      } else {
+        logger.info(`[STATE UPDATE] Conversation state ${conversationId} successfully updated in DB to ${newState}.`);
+      }
+    }
+
+    // --- Decide if the AI should respond ---
+    // The AI will respond ONLY if the state is 'active' (after potential modification by this message) AND shouldAutoRespond is true
+    logger.debug(`[AI RESPONSE CHECK] Message body: "${msg.body}"`);
+    logger.debug(`[AI RESPONSE CHECK] New conversation state: ${newState}`);
+    const aiConfig = getAiConfig(); // Get current AI config
+    logger.debug(`[AI RESPONSE CHECK] AI Config Enabled: ${aiConfig.enabled}`);
+    logger.debug(`[AI RESPONSE CHECK] AI Config Respond To All: ${aiConfig.respondToAll}`);
+    logger.debug(`[AI RESPONSE CHECK] AI Config Keywords: ${aiConfig.keywords.join(', ')}`);
+
+    const aiShouldRespondBasedOnConfig = shouldAutoRespond(msg.body);
+    logger.debug(`[AI RESPONSE CHECK] shouldAutoRespond(msg.body) result: ${aiShouldRespondBasedOnConfig}`);
+
+    // Decide if the AI should respond using the NEW state of the conversation
+    const shouldAIRespondNow = newState === 'active' && aiShouldRespondBasedOnConfig;
+    logger.info(`[AI RESPONSE CHECK] Final decision (new state === 'active' && shouldAutoRespond): ${shouldAIRespondNow}`);
+
+
+    if (shouldAIRespondNow) {
+      logger.ai.info('Déclenchement de la réponse automatique');
+      
+      const aiResponse = await generateAIResponseWithHistory(msg.from, msg.body);
+      
+      if (typeof aiResponse === 'object' && aiResponse.typingDelay) {
+        logger.ai.info(`Délai de frappe: ${Math.round(aiResponse.typingDelay / 1000)}s`);
+        await new Promise(resolve => setTimeout(resolve, aiResponse.typingDelay));
+        
+        if (whatsappClient) {
+          const sentMessage = await whatsappClient.sendMessage(msg.from, aiResponse.text);
+          logger.whatsapp.messageSent(msg.from, aiResponse.text);
+          
+          // Save AI response
+          const savedAiMessage = await saveMessage(conversationId, aiResponse.text, true, sentMessage.id._serialized, new Date().toISOString(), currentUserId);
+          if (savedAiMessage) {
+            logger.database.saved('messages', savedAiMessage.id);
+            logger.websocket.emit('new_message', 'Réponse IA');
+          }
+        }
+      }
+    }
+
+    // Retrieve vehicle information if available (for incoming message WebSocket emission)
+    let vehicle = null;
+    if (currentVehicleId) {
+      const { data: vehicleData } = await supabase
+        .from('vehicles')
+        .select('id, brand, model, year, image_url')
+        .eq('id', currentVehicleId)
+        .single();
+      vehicle = vehicleData;
+    }
+
+    // Create a formatted message object for the client (for the incoming message)
+    const formattedMessage = {
+      id: savedMessage?.id, // Use the DB ID if available
+      message_id: msg.id._serialized, // Original WhatsApp ID
+      from: msg.from,
+      to: 'me',
+      body: msg.body,
+      timestamp: new Date(msg.timestamp * 1000).getTime() / 1000,
+      isFromMe: false,
+      chatName: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Chat sans nom',
+      chatId: initialConversation.chat_id || conversationId,
+      conversation_id: conversationId,
+      vehicle: vehicle
+    };
+
+    // Emit the new message event to all connected clients
+    logger.websocket.emit('new_message', `Message de ${msg.from}`);
+
+
+  } catch (error) {
+    logger.error('Erreur lors du traitement du message:', error);
+  } finally {
+    logger.separator();
+  }
+}
+
+// Function to handle outgoing messages (sent from WhatsApp Web/Phone)
+async function handleOutgoingMessage(msg, whatsappClient) {
+  logger.info('Outgoing message detected:', msg.body);
+  logger.info('To:', msg.to);
+
+  try {
+    // Find or create the conversation
+    const initialConversation = await findOrCreateConversation(msg.to);
+    if (!initialConversation) {
+      logger.error('Could not find or create a conversation for:', msg.to);
+      return;
+    }
+
+    // Retrieve the current conversation info
+    const { data: currentConversationData, error: stateFetchError } = await supabase
+        .from('conversations')
+        .select('id, state, vehicle_id, user_id')
+        .eq('id', initialConversation.id)
+        .single();
+
+    if (stateFetchError || !currentConversationData) {
+        logger.error(`Error fetching conversation ${initialConversation.id}:`, stateFetchError);
+        return;
+    }
+
+    const conversationId = currentConversationData.id;
+    const currentUserId = currentConversationData.user_id;
+    const currentVehicleId = currentConversationData.vehicle_id;
+
+    // Save the outgoing message
+    const savedMessage = await saveMessage(
+      conversationId,
+      msg.body,
+      true, // isFromMe
+      msg.id._serialized,
+      new Date(msg.timestamp * 1000).toISOString(),
+      currentUserId
+    );
+
+    if (!savedMessage) {
+      logger.error('Error storing outgoing message.');
+      return;
+    }
+
+    logger.info('Outgoing message stored successfully in messages table (ID:', savedMessage.id, ')');
+
+    // Update the last message date for the conversation
+    await supabase
+      .from('conversations')
+      .update({ last_message_at: new Date().toISOString() })
+      .eq('id', conversationId);
+
+    // Retrieve vehicle information if available
+    let vehicle = null;
+    if (currentVehicleId) {
+      const { data: vehicleData } = await supabase
+        .from('vehicles')
+        .select('id, brand, model, year, image_url')
+        .eq('id', currentVehicleId)
+        .single();
+      vehicle = vehicleData;
+    }
+
+    // Create a formatted message object for the client
+    const formattedMessage = {
+      id: savedMessage.id,
+      message_id: msg.id._serialized,
+      from: 'me',
+      to: msg.to,
+      body: msg.body,
+      timestamp: new Date(msg.timestamp * 1000).getTime() / 1000,
+      isFromMe: true,
+      chatName: vehicle ? `${vehicle.brand} ${vehicle.model}` : 'Chat sans nom',
+      chatId: initialConversation.chat_id || conversationId,
+      conversation_id: conversationId,
+      vehicle: vehicle
+    };
+
+    // Emit the new message event to all connected clients
+    logger.info('WebSocket Emission - Outgoing Message from WhatsApp Web/Phone:', JSON.stringify(formattedMessage, null, 2));
+    if (io) {
+        logger.info('Connected WebSocket clients:', io.engine.clientsCount);
+        io.emit('new_message', formattedMessage);
+        logger.info('Outgoing message emitted via WebSocket:', formattedMessage.body);
+    } else {
+        logger.warn('Socket.IO instance not available for WebSocket emission.');
+    }
+
+  } catch (error) {
+    logger.error('Error processing outgoing message:', error);
+  }
+}
+
+module.exports = {
+  handleIncomingMessage,
+  handleOutgoingMessage
+};

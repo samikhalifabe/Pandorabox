@@ -1,0 +1,25 @@
+[build]
+builder = "nixpacks"
+
+[deploy]
+healthcheckPath = "/api/whatsapp/status"
+healthcheckTimeout = 300
+restartPolicyType = "never"
+
+# Backend (Express server)
+[[services]]
+name = "backend"
+source = "backend"
+
+[services.variables]
+NODE_ENV = "production"
+PORT = "8080"
+
+# Frontend (Next.js)
+[[services]]
+name = "frontend"
+source = "frontend"
+
+[services.variables]
+NODE_ENV = "production"
+NEXT_TELEMETRY_DISABLED = "1" 
