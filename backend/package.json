@@ -4,7 +4,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js",
+    "dev": "ts-node-dev --respawn --transpile-only --ignore-watch node_modules --ignore-watch session-whatsapp-api --ignore-watch .wwebjs_cache --ignore-watch .wwebjs_auth index.js",
     "build": "echo 'Backend build complete'",
     "start:prod": "NODE_ENV=production node index.js"
   },
@@ -34,6 +34,8 @@
   },
   "devDependencies": {
     "@types/react-window": "^1.8.8",
-    "nodemon": "^3.0.1"
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.3.3"
   }
 }

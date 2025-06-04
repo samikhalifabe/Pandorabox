@@ -5,6 +5,7 @@ const { loadAIConfigFromDB } = require('./services/aiResponse');
 const errorHandler = require('./middleware/errorHandler');
 const routes = require('./routes');
 const logger = require('./utils/logger');
+const { Client } = require('whatsapp-web.js');
 
 async function startServer() {
   try {
@@ -20,6 +21,21 @@ async function startServer() {
 
     // Initialiser le client WhatsApp
     // Pass the Socket.IO instance to the WhatsApp service
+    const client = new Client({
+        puppeteer: {
+            headless: true,
+            args: [
+                '--no-sandbox',
+                '--disable-setuid-sandbox',
+                '--disable-dev-shm-usage',
+                '--disable-accelerated-2d-canvas',
+                '--no-first-run',
+                '--no-zygote',
+                '--disable-gpu'
+            ],
+            userDataDir: './whatsapp-session'
+        }
+    });
     await initializeWhatsAppClient(io);
 
     // Charger la configuration AI depuis la base de données
