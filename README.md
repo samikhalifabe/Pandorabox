@@ -1,72 +1,98 @@
-# whatsapp-server
+# 🚀 Pandorabox
 
-## Configuration multiplateforme
+Une plateforme complète de communication intelligente avec frontend Next.js et backend Express.js.
 
-Pour que votre application WhatsApp Automation fonctionne correctement sur macOS et Windows, vous devez gérer les différences de configuration et d'environnement entre ces systèmes d'exploitation, particulièrement en ce qui concerne l'automatisation de Chrome avec Puppeteer.
+## 📁 Structure du projet
+
+```
+pandorabox/
+├── README.md                    # Ce fichier
+├── package.json                 # Configuration workspace
+├── frontend/                    # Application Next.js
+│   ├── app/                    # Pages et API routes
+│   ├── components/             # Composants React
+│   ├── lib/                    # Utilitaires
+│   └── package.json
+└── backend/                     # Serveur Express
+    ├── services/               # Services de communication & IA
+    ├── controllers/            # Contrôleurs API
+    ├── models/                 # Modèles de données
+    ├── routes/                 # Routes Express
+    └── package.json
+```
+
+## 🌟 Fonctionnalités
+
+### Frontend (Next.js)
+- ✅ Interface moderne avec Shadcn/ui
+- ✅ Dashboard d'administration
+- ✅ Gestion des contacts et véhicules
+- ✅ Envoi de messages individuels et en masse
+- ✅ Historique des conversations
+- ✅ Authentification Supabase
+- ✅ Temps réel avec Socket.IO
+
+### Backend (Express.js)
+- ✅ Intégration de communication multi-canaux
+- ✅ API REST complète
+- ✅ WebSocket pour temps réel
+- ✅ Gestion des sessions
+- ✅ Base de données Supabase
+- ✅ Intelligence artificielle (OpenAI/Grok)
+- ✅ Anti-spam et gestion des doublons
+
+## 🚀 Démarrage rapide
 
 ### Prérequis
-
-Assurez-vous d'avoir installé les éléments suivants :
-
-1.  **Google Chrome** : L'application utilise Puppeteer pour contrôler une instance de Chrome. Assurez-vous que Chrome est installé sur votre système.
-2.  **Node.js** : Installez Node.js (version 14 ou supérieure recommandée).
+- Node.js 18+
+- Compte Supabase
+- Compte OpenAI ou Grok (optionnel)
 
 ### Installation
 
-1.  Clonez le dépôt.
-2.  Naviguez vers le répertoire `whatsapp-server`.
-3.  Exécutez le script d'installation :
-    ```bash
-    node install.js
-    ```
-    Ce script installera les dépendances nécessaires et vérifiera la présence de Chrome.
+1. **Installer les dépendances**
+   ```bash
+   npm install
+   ```
 
-### Configuration des variables d'environnement
+2. **Configuration des variables d'environnement**
+   
+   **Backend (.env)**
+   ```bash
+   cd backend
+   cp .env.example .env
+   # Remplir avec vos clés Supabase et IA
+   ```
 
-Créez un fichier `.env` à la racine du répertoire `whatsapp-server` avec les informations suivantes :
+   **Frontend (.env.local)**
+   ```bash
+   cd frontend
+   cp .env.example .env.local
+   # Remplir avec vos clés Supabase
+   ```
 
-```dotenv
-SUPABASE_URL=votre_url_supabase
-SUPABASE_KEY=votre_clé_anon_supabase
-GROK_API_KEY=votre_clé_api_grok # Clé API Grok pour les fonctionnalités IA
-GROK_MODEL=grok-3-mini # Optionnel, modèle Grok à utiliser (par défaut: grok-3-mini)
-GROK_TEMPERATURE=0.7 # Optionnel, créativité des réponses (0.0 à 1.0)
-GROK_MAX_TOKENS=300 # Optionnel, longueur maximale des réponses
-GROK_REASONING_EFFORT=low # Optionnel, effort de raisonnement pour Grok 3 Mini (low/high)
-# CHROME_PATH=/chemin/vers/chrome # Optionnel, si Chrome n'est pas détecté automatiquement
-# WHATSAPP_USER_DATA_DIR=/chemin/pour/données/utilisateur # Optionnel, pour spécifier le répertoire de données utilisateur de Chrome (Windows)
+3. **Démarrer en développement**
+   ```bash
+   npm run dev
+   ```
+
+## 🔧 Configuration
+
+### Variables d'environnement Backend
+```env
+# Supabase
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_anon_key
+
+# Intelligence Artificielle
+GROK_API_KEY=your_grok_api_key
+OPENAI_API_KEY=your_openai_key
+
+# Serveur
+PORT=3001
+NODE_ENV=development
 ```
 
-Remplacez les valeurs par vos propres informations d'identification Supabase et Grok. Le chemin de Chrome et le répertoire de données utilisateur sont optionnels si la détection automatique fonctionne.
+---
 
-### Démarrage du serveur
-
-Utilisez les scripts npm adaptés à votre système d'exploitation :
-
-*   **Pour Windows** :
-    ```bash
-    npm run start:win
-    ```
-*   **Pour macOS ou Linux** :
-    ```bash
-    npm run start:mac
-    ```
-    ou simplement :
-    ```bash
-    npm start
-    ```
-
-Pour le développement avec nodemon :
-
-```bash
-npm run dev
-```
-
-### En cas de problème
-
-*   **Chrome non trouvé** : Si le serveur ne parvient pas à trouver l'exécutable Chrome, vérifiez qu'il est installé dans un emplacement standard. Si vous l'avez installé dans un emplacement personnalisé, définissez la variable d'environnement `CHROME_PATH` dans votre fichier `.env` avec le chemin correct.
-*   **Problèmes d'autorisation sur Windows** : Si vous rencontrez des problèmes liés aux autorisations de fichiers ou de répertoire sur Windows, essayez d'exécuter votre terminal en tant qu'administrateur avant de démarrer le serveur. Vous pouvez également spécifier un répertoire de données utilisateur de Chrome différent en définissant la variable d'environnement `WHATSAPP_USER_DATA_DIR` dans votre fichier `.env`.
-*   **Problèmes de connexion Supabase** : Vérifiez que `SUPABASE_URL` et `SUPABASE_KEY` sont correctement définis dans votre fichier `.env`.
-*   **Problèmes de connexion Grok** : Vérifiez que `GROK_API_KEY` est correctement défini dans votre fichier `.env` si vous utilisez les fonctionnalités IA.
-
-En suivant ces étapes, vous devriez pouvoir configurer et exécuter le serveur WhatsApp Automation sur macOS et Windows.
+Fait avec ❤️ par [Sami](https://github.com/yourusername)

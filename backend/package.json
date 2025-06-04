@@ -1,5 +1,5 @@
 {
-  "name": "whatsapp-automation-backend",
+  "name": "pandorabox-backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
@@ -9,14 +9,16 @@
     "start:prod": "NODE_ENV=production node index.js"
   },
   "keywords": [
-    "whatsapp",
-    "automation",
+    "communication",
+    "messaging",
     "express",
-    "api"
+    "api",
+    "pandorabox",
+    "ai"
   ],
   "author": "Sami",
   "license": "MIT",
-  "description": "WhatsApp automation backend server",
+  "description": "Pandorabox - Serveur backend de communication intelligente",
   "dependencies": {
     "@supabase/supabase-js": "^2.49.4",
     "cors": "^2.8.5",
