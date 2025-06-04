@@ -3,11 +3,9 @@ primary_region = "cdg"
 
 [build]
   dockerfile = "Dockerfile"
-  builder = "nextjs"
 
 [env]
   PORT = "3000"
-  NODE_ENV = "production"
 
 [http_service]
   internal_port = 3000
