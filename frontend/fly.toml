@@ -1,13 +1,14 @@
-app = "pandorabox"
+app = "pandorabox-frontend"
 primary_region = "cdg"
 
 [build]
-  builder = "nextjs"
+  builder = "heroku/buildpacks:20"
   buildCommand = "npm run build"
 
 [env]
   PORT = "3000"
   NODE_ENV = "production"
+  NEXT_TELEMETRY_DISABLED = "1"
 
 [http_service]
   internal_port = 3000
