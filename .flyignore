@@ -1,0 +1,11 @@
+.git
+.gitignore
+.env
+.env.*
+node_modules
+.next
+.vscode
+.idea
+*.log
+.DS_Store
+fly.build.toml 

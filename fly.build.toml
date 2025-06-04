@@ -2,10 +2,18 @@ app = "pandorabox"
 primary_region = "cdg"
 
 [build]
-  dockerfile = "Dockerfile"
+  builder = "node"
+  buildCommand = "npm run build"
+  [build.args]
+    NEXT_PUBLIC_SUPABASE_URL = ""
+    NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
+    NEXT_PUBLIC_BACKEND_URL = ""
 
 [env]
   PORT = "3000"
+  NEXT_PUBLIC_SUPABASE_URL = ""
+  NEXT_PUBLIC_SUPABASE_ANON_KEY = ""
+  NEXT_PUBLIC_BACKEND_URL = ""
 
 [http_service]
   internal_port = 3000
@@ -21,12 +29,4 @@ primary_region = "cdg"
   memory_mb = 1024
 
 [processes]
-  app = "npm start"
-
-[deploy]
-  strategy = "immediate"
-  release_command = "npm run build"
-
-[metrics]
-  port = 3000
-  path = "/metrics" 
+  app = "npm start" 
