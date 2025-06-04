@@ -28,4 +28,12 @@ primary_region = "cdg"
   memory_mb = 1024
 
 [processes]
-  app = "npm start" 
+  app = "npm start"
+
+[deploy]
+  strategy = "immediate"
+  release_command = "npm run build"
+
+[metrics]
+  port = 3000
+  path = "/metrics" 
