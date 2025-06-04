@@ -1,24 +1,37 @@
 {
-  "name": "whatsapp-automation",
+  "name": "whatsapp-automation-backend",
   "version": "1.0.0",
-  "description": "WhatsApp Automation Monorepo - Frontend + Backend",
-  "private": true,
-  "workspaces": [
-    "frontend",
-    "backend"
-  ],
+  "main": "index.js",
   "scripts": {
-    "dev": "npm run dev:backend & npm run dev:frontend",
-    "dev:frontend": "npm run dev --workspace=frontend",
-    "dev:backend": "npm run dev --workspace=backend",
-    "build": "npm run build --workspace=frontend && npm run build --workspace=backend",
-    "start": "npm run start --workspace=backend",
-    "install:all": "npm install && npm install --workspaces"
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "build": "echo 'Backend build complete'",
+    "start:prod": "NODE_ENV=production node index.js"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/yourusername/whatsapp-automation.git"
-  },
+  "keywords": [
+    "whatsapp",
+    "automation",
+    "express",
+    "api"
+  ],
   "author": "Sami",
-  "license": "MIT"
+  "license": "MIT",
+  "description": "WhatsApp automation backend server",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.4",
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "node-fetch": "^3.3.2",
+    "openai": "^4.97.0",
+    "qrcode-terminal": "^0.12.0",
+    "react-window": "^1.8.11",
+    "socket.io": "^4.8.1",
+    "socket.io-client": "^4.8.1",
+    "whatsapp-web.js": "^1.27.0"
+  },
+  "devDependencies": {
+    "@types/react-window": "^1.8.8",
+    "nodemon": "^3.0.1"
+  }
 }

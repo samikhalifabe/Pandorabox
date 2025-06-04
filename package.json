@@ -1,1 +1,27 @@
-{"name":"whatsapp-automation","version":"1.0.0","description":"WhatsApp Automation Monorepo - Frontend + Backend","private":true,"workspaces":["frontend","backend"],"scripts":{"dev":"npm run dev:backend & npm run dev:frontend","dev:frontend":"npm run dev --workspace=frontend","dev:backend":"npm run dev --workspace=backend","build":"npm run build --workspace=frontend && npm run build --workspace=backend","start":"npm run start --workspace=backend","install:all":"npm install && npm install --workspaces"},"repository":{"type":"git","url":"git+https://github.com/yourusername/whatsapp-automation.git"},"author":"Sami","license":"MIT"}
+{
+  "name": "whatsapp-automation",
+  "version": "1.0.0",
+  "description": "WhatsApp Automation Monorepo - Frontend + Backend",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:backend": "cd backend && npm run dev",
+    "build": "cd frontend && npm run build && cd ../backend && npm run build",
+    "start": "cd backend && npm run start",
+    "install:all": "npm install"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/whatsapp-automation.git"
+  },
+  "author": "Sami",
+  "license": "MIT"
+}
