@@ -1,5 +1,6 @@
 const qrcode = require('qrcode-terminal');
-const { Client, LocalAuth } = require('whatsapp-web.js');
+// Import whatsapp-web.js only when needed to avoid module-level initialization
+let Client, LocalAuth;
 const { getPuppeteerOptions, getSessionDirectory } = require('../config/puppeteer');
 // We will need to import functions from models and other services later
 // const { findOrCreateConversation, updateConversationState } = require('../models/conversation');
@@ -39,15 +40,32 @@ function getRecentApiMessages() {
 } // Store the Socket.IO instance
 
 async function initializeWhatsAppClient(io) {
+  // Import whatsapp-web.js only when actually initializing to avoid module-level Chrome detection
+  if (!Client || !LocalAuth) {
+    const whatsappWeb = require('whatsapp-web.js');
+    Client = whatsappWeb.Client;
+    LocalAuth = whatsappWeb.LocalAuth;
+  }
+
   socketIo = io; // Store the Socket.IO instance
 
   // Configuration du client WhatsApp
   const puppeteerOptions = getPuppeteerOptions();
   const sessionDirectory = getSessionDirectory();
 
-  // Ensure session directory exists
+  // Ensure session directory exists and clean it in Docker
   const fs = require('fs');
   const path = require('path');
+  
+  // Clean session directory in Docker to avoid profile conflicts
+  if (process.env.DOCKER_ENV === 'true' && fs.existsSync(sessionDirectory)) {
+    try {
+      fs.rmSync(sessionDirectory, { recursive: true, force: true });
+      logger.info('Cleaned session directory for Docker environment');
+    } catch (error) {
+      logger.warn('Could not clean session directory:', error.message);
+    }
+  }
   if (!fs.existsSync(sessionDirectory)) {
       try {
           fs.mkdirSync(sessionDirectory, { recursive: true });
@@ -57,13 +75,40 @@ async function initializeWhatsAppClient(io) {
       }
   }
 
-  whatsappClient = new Client({
-    authStrategy: new LocalAuth({
-      clientId: "whatsapp-api",
-      dataPath: sessionDirectory
-    }),
-    puppeteer: puppeteerOptions
-  });
+  // For Docker environment, use NoAuth strategy with fresh profile every time
+  if (process.env.DOCKER_ENV === 'true') {
+    // Force un profil Chrome temporaire unique pour éviter les conflits de verrouillage
+    const dockerPuppeteerOptions = {
+      ...puppeteerOptions,
+      userDataDir: `/tmp/chrome-${Date.now()}-${Math.random().toString(36).substring(7)}`,
+      args: [
+        ...puppeteerOptions.args,
+        '--disable-web-security',
+        '--disable-features=VizDisplayCompositor',
+        '--single-process',
+        '--no-sandbox',
+        '--disable-setuid-sandbox'
+      ]
+    };
+    
+    logger.info(`Docker: Using temporary Chrome profile: ${dockerPuppeteerOptions.userDataDir}`);
+    
+    whatsappClient = new Client({
+      puppeteer: dockerPuppeteerOptions
+    });
+  } else {
+    // For non-Docker environments, use LocalAuth without userDataDir in puppeteer
+    const cleanPuppeteerOptions = { ...puppeteerOptions };
+    delete cleanPuppeteerOptions.userDataDir;
+    
+    whatsappClient = new Client({
+      authStrategy: new LocalAuth({
+        clientId: "whatsapp-api",
+        dataPath: sessionDirectory
+      }),
+      puppeteer: cleanPuppeteerOptions
+    });
+  }
 
   // Gestionnaire d'événement QR code
   whatsappClient.on('qr', (qr) => {

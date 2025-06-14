@@ -1,4 +1,4 @@
-const { getWhatsAppStatus, getQRCode, sendWhatsAppMessage } = require('../services/whatsapp');
+const { getWhatsAppStatus, getQRCode, sendWhatsAppMessage, initializeWhatsAppClient } = require('../services/whatsapp');
 const { findOrCreateConversation } = require('../models/conversation'); // Needed to get conversation ID for saving message
 const { saveMessage } = require('../models/message'); // Needed to save outgoing message
 const { updateVehicleContactStatus } = require('../models/vehicle'); // Needed to update vehicle status
@@ -720,10 +720,23 @@ const syncAllConversationsHistory = async (req, res) => {
   }
 };
 
+// Function to initialize WhatsApp client manually
+const initializeClient = async (req, res) => {
+  try {
+    logger.info('Manual WhatsApp client initialization requested');
+    await initializeWhatsAppClient(io);
+    res.json({ success: true, message: 'WhatsApp client initialized successfully' });
+  } catch (error) {
+    logger.error('Failed to initialize WhatsApp client:', error);
+    res.status(500).json({ error: 'Failed to initialize WhatsApp client', details: error.message });
+  }
+};
+
 module.exports = {
   getStatus,
   getQrCode,
   sendMessage,
+  initializeClient,
   getRecentMessages,
   updateContactedVehicles,
   getAllWhatsAppConversations,

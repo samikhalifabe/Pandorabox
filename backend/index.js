@@ -5,7 +5,6 @@ const { loadAIConfigFromDB } = require('./services/aiResponse');
 const errorHandler = require('./middleware/errorHandler');
 const routes = require('./routes');
 const logger = require('./utils/logger');
-const { Client } = require('whatsapp-web.js');
 
 async function startServer() {
   try {
@@ -19,24 +18,17 @@ async function startServer() {
     // Apply the error handling middleware
     app.use(errorHandler);
 
-    // Initialiser le client WhatsApp
-    // Pass the Socket.IO instance to the WhatsApp service
-    const client = new Client({
-        puppeteer: {
-            headless: true,
-            args: [
-                '--no-sandbox',
-                '--disable-setuid-sandbox',
-                '--disable-dev-shm-usage',
-                '--disable-accelerated-2d-canvas',
-                '--no-first-run',
-                '--no-zygote',
-                '--disable-gpu'
-            ],
-            userDataDir: './whatsapp-session'
-        }
-    });
-    await initializeWhatsAppClient(io);
+    // Initialiser le client WhatsApp seulement si pas dans Docker
+    if (process.env.DOCKER_ENV !== 'true') {
+      try {
+        await initializeWhatsAppClient(io);
+      } catch (error) {
+        logger.error('Failed to initialize WhatsApp client:', error);
+        logger.info('Server will continue without WhatsApp - use /api/whatsapp/initialize to retry');
+      }
+    } else {
+      logger.info('Docker environment detected - WhatsApp client will be initialized manually via API');
+    }
 
     // Charger la configuration AI depuis la base de données
     await loadAIConfigFromDB();

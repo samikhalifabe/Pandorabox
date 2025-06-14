@@ -1,6 +1,6 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Send, MessageSquare, Car, Database } from "lucide-react"
+import { Send, MessageSquare, Car, Database, QrCode } from "lucide-react"
 import Link from "next/link"
 
 export function QuickActions() {
@@ -11,31 +11,40 @@ export function QuickActions() {
         <CardDescription>Accédez rapidement aux fonctionnalités principales</CardDescription>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-2 gap-2">
-          <Link href="/multi-sender">
-            <Button variant="outline" className="w-full justify-start">
-              <Send className="mr-2 h-4 w-4 text-[#25D366]" />
-              Envoi multiple
+        <div className="space-y-3">
+          <Link href="/whatsapp-connection">
+            <Button className="w-full justify-start bg-[#25D366] hover:bg-[#128C7E] text-white">
+              <QrCode className="mr-2 h-4 w-4" />
+              Connexion WhatsApp
             </Button>
           </Link>
-          <Link href="/conversations">
-            <Button variant="outline" className="w-full justify-start">
-              <MessageSquare className="mr-2 h-4 w-4 text-[#25D366]" />
-              Conversations
-            </Button>
-          </Link>
-          <Link href="/autoscout">
-            <Button variant="outline" className="w-full justify-start">
-              <Car className="mr-2 h-4 w-4 text-[#25D366]" />
-              AutoScout24
-            </Button>
-          </Link>
-          <Link href="/db-conversations">
-            <Button variant="outline" className="w-full justify-start">
-              <Database className="mr-2 h-4 w-4 text-[#25D366]" />
-              Base de données
-            </Button>
-          </Link>
+          
+          <div className="grid grid-cols-2 gap-2">
+            <Link href="/multi-sender">
+              <Button variant="outline" className="w-full justify-start">
+                <Send className="mr-2 h-4 w-4 text-[#25D366]" />
+                Envoi multiple
+              </Button>
+            </Link>
+            <Link href="/conversations">
+              <Button variant="outline" className="w-full justify-start">
+                <MessageSquare className="mr-2 h-4 w-4 text-[#25D366]" />
+                Conversations
+              </Button>
+            </Link>
+            <Link href="/autoscout">
+              <Button variant="outline" className="w-full justify-start">
+                <Car className="mr-2 h-4 w-4 text-[#25D366]" />
+                AutoScout24
+              </Button>
+            </Link>
+            <Link href="/db-conversations">
+              <Button variant="outline" className="w-full justify-start">
+                <Database className="mr-2 h-4 w-4 text-[#25D366]" />
+                Base de données
+              </Button>
+            </Link>
+          </div>
         </div>
       </CardContent>
     </Card>

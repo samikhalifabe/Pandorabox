@@ -10,7 +10,7 @@ type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"]
 
 const TEMP_USER_ID = "00000000-0000-0000-0000-000000000000" // Temporary user ID
 
-const BASE_URL = "http://localhost:3001/api/whatsapp"
+const BASE_URL = "http://31.97.69.92:3001/api/whatsapp"
 
 export function useMultiSender() {
   const { status, refreshStatus, lastChecked } = useWhatsApp()

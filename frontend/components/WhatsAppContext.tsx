@@ -9,6 +9,7 @@ interface WhatsAppContextType {
   refreshStatus: () => Promise<void>
   lastChecked: Date | null
   isRefreshing: boolean
+  forceRefreshQrCode: () => Promise<void>
 }
 
 const WhatsAppContext = createContext<WhatsAppContextType>({
@@ -17,6 +18,7 @@ const WhatsAppContext = createContext<WhatsAppContextType>({
   refreshStatus: async () => {},
   lastChecked: null,
   isRefreshing: false,
+  forceRefreshQrCode: async () => {},
 })
 
 export const useWhatsApp = () => useContext(WhatsAppContext)
@@ -28,7 +30,9 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const intervalRef = useRef<NodeJS.Timeout | null>(null)
 
-  const SERVER_URL = "http://localhost:3001"
+  // Utilise les routes API du frontend (proxy vers le backend)
+  const SERVER_URL = ''
+  console.log("Utilisation des routes API frontend (proxy)")
 
   // Augmenter l'intervalle à 60 secondes au lieu de 30
   const REFRESH_INTERVAL = 60000
@@ -71,11 +75,22 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
     }
   }
 
-  const fetchQrCode = async () => {
+  const fetchQrCode = async (forceRefresh = false) => {
     try {
-      const { data } = await axios.get(`${SERVER_URL}/api/whatsapp/qrcode`)
+      console.log("Tentative de récupération du QR code depuis:", `${SERVER_URL}/api/whatsapp/qrcode`)
+      
+      // Ajouter un timestamp pour bypasser le cache si demandé
+      const url = forceRefresh 
+        ? `${SERVER_URL}/api/whatsapp/qrcode?t=${Date.now()}`
+        : `${SERVER_URL}/api/whatsapp/qrcode`
+      
+      const { data } = await axios.get(url)
+      console.log("Réponse API QR code:", data)
       if (data.qrcode) {
         setQrCode(data.qrcode)
+        console.log("QR code défini:", data.qrcode.substring(0, 50) + "...")
+      } else {
+        console.log("Pas de QR code dans la réponse")
       }
     } catch (error) {
       console.error("Erreur lors de la récupération du QR code:", error)
@@ -107,8 +122,12 @@ export const WhatsAppProvider = ({ children }: { children: ReactNode }) => {
     };
   }, []); // Empty dependency array means this runs once on mount
 
+  const forceRefreshQrCode = async () => {
+    await fetchQrCode(true)  // Force le refresh avec bypass du cache
+  }
+
   return (
-    <WhatsAppContext.Provider value={{ status, qrCode, refreshStatus, lastChecked, isRefreshing }}>
+    <WhatsAppContext.Provider value={{ status, qrCode, refreshStatus, lastChecked, isRefreshing, forceRefreshQrCode }}>
       {children}
     </WhatsAppContext.Provider>
   )

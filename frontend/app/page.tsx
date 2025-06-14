@@ -5,7 +5,7 @@ import dynamic from "next/dynamic"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { DashboardLayout } from "@/components/DashboardLayout"
 import { DashboardStats } from "@/components/DashboardStats"
-import { WhatsAppStatus } from "@/components/WhatsAppStatus"
+import { WhatsAppQRCode } from "@/components/WhatsAppQRCode"
 import { QuickActions } from "@/components/QuickActions"
 import { RecentConversations } from "@/components/RecentConversations"
 import { useWhatsApp } from "@/components/WhatsAppContext"
@@ -55,7 +55,7 @@ export default function Home() {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const { vehicles } = useVehicles()
   const { contacts } = useContacts()
-  const [recentConversations, setRecentConversations] = useState([])
+  const [recentConversations, setRecentConversations] = useState<any[]>([])
 
   // Simuler des statistiques pour le dashboard
   const stats = {
@@ -116,12 +116,12 @@ export default function Home() {
         <DashboardStats stats={stats} />
 
         <div className="grid gap-6 md:grid-cols-2">
-          <WhatsAppStatus
-            status={status}
+          <WhatsAppQRCode
             qrCode={qrCode}
-            lastChecked={lastChecked}
+            status={status}
             onRefresh={handleRefreshStatus}
             isRefreshing={isRefreshing}
+            lastChecked={lastChecked}
           />
           <QuickActions />
         </div>

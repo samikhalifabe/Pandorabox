@@ -6,6 +6,7 @@ const whatsappController = require('../controllers/whatsapp');
 router.get('/status', whatsappController.getStatus);
 router.get('/qrcode', whatsappController.getQrCode);
 router.post('/send', whatsappController.sendMessage);
+router.post('/initialize', whatsappController.initializeClient);
 router.get('/messages', whatsappController.getRecentMessages); // Get recent messages from WhatsApp
 router.get('/update-contacted-vehicles', whatsappController.updateContactedVehicles); // Update vehicle statuses based on WhatsApp chats
 router.get('/all-conversations', whatsappController.getAllWhatsAppConversations); // Get all conversations from WhatsApp

@@ -29,13 +29,32 @@ interface UseWebSocketOptions {
 
 export const useWebSocket = ({
   onNewMessage,
-  socketUrl = "http://localhost:3001",
+  socketUrl,
   enabled = true, // Activé par défaut
 }: UseWebSocketOptions) => {
+  // Déterminer l'URL WebSocket de manière sûre pour SSR
+  const getSocketUrl = () => {
+    if (socketUrl) return socketUrl;
+    
+    if (typeof window === 'undefined') {
+      // Côté serveur, utiliser l'URL du backend
+      return "http://pandorabox:3001";
+    }
+    
+    // Côté client
+    if (process.env.NODE_ENV === 'production') {
+      return `${window.location.protocol}//${window.location.host}`;
+    }
+    
+    return "http://31.97.69.92:3001";
+  };
   const [socketConnected, setSocketConnected] = useState<boolean>(false)
   const socketRef = useRef<Socket | null>(null)
 
   useEffect(() => {
+    // Ne pas initialiser côté serveur
+    if (typeof window === 'undefined') return;
+    
     // Ne pas initialiser le WebSocket si enabled est false
     if (!enabled) {
       if (socketRef.current) {
@@ -49,8 +68,9 @@ export const useWebSocket = ({
 
     // Initialiser le WebSocket seulement s'il n'existe pas déjà
     if (!socketRef.current) {
-      console.log("🔌 Initializing WebSocket connection to:", socketUrl)
-      socketRef.current = io(socketUrl)
+      const finalSocketUrl = getSocketUrl();
+      console.log("🔌 Initializing WebSocket connection to:", finalSocketUrl)
+      socketRef.current = io(finalSocketUrl)
 
       socketRef.current.on("connect", () => {
         console.log("✅ WebSocket connected!")
@@ -112,8 +132,9 @@ export const useWebSocket = ({
     }
 
     if (enabled) {
-      console.log("🔌 Reconnecting to:", socketUrl)
-      socketRef.current = io(socketUrl)
+      const finalSocketUrl = getSocketUrl();
+      console.log("🔌 Reconnecting to:", finalSocketUrl)
+      socketRef.current = io(finalSocketUrl)
 
       socketRef.current.on("connect", () => {
         console.log("✅ WebSocket reconnected!")

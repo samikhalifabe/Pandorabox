@@ -4,7 +4,7 @@ import { debounce, throttle } from "@/utils/debounce"
 
 // Configuration de base pour axios
 const api = axios.create({
-  baseURL: "http://localhost:3001",
+  baseURL: process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:3001",
   timeout: 10000,
 })
 
@@ -22,7 +22,7 @@ const getCacheKey = (url: string, params?: any) => {
  * @returns Les données de la réponse
  */
 export const fetchWithCache = async <T>(
-  url: string,\
+  url: string,
   config?: AxiosRequestConfig,
   cacheTime: number = 30000
 )

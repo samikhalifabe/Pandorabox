@@ -1,7 +1,7 @@
 const { openai, grokApiKey, sanitizeTypingDelays, defaultAiConfig, getModelApiParams } = require('../config/ai');
 const logger = require('../utils/logger');
 const { supabase } = require('./database'); // Import supabase at the top
-const Message = require('../models/Message'); // Import Message model for history
+const { getMessagesByConversationId } = require('../models/message');
 const { normalizePhoneNumber } = require('../utils/phoneNumber'); // Import phone number utils
 
 // Map to store conversation history (limited size)
@@ -181,8 +181,7 @@ async function loadConversationHistoryFromDB(phoneNumber) {
     }
     
     // Get messages for this conversation, ordered by timestamp (newest first)
-    const messages = await Message.getMessagesByConversationId(conversation.id);
-    
+const messages = await getMessagesByConversationId(conversation.id);    
     if (!messages || messages.length === 0) {
       logger.info(`📭 No message history found for conversation: ${conversation.id}`);
       return [];

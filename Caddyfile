@@ -1,0 +1,45 @@
+# Configuration pour votre domaine (remplacez par votre domaine)
+# pandorabox.yourdomain.com {
+#     reverse_proxy pandorabox:3000
+#     reverse_proxy /api/* pandorabox:3001
+# }
+
+# Configuration temporaire pour IP (auto-certificat self-signed)
+31.97.69.92 {
+    tls internal
+    
+    # Routes vers le frontend
+    reverse_proxy pandorabox:3000 {
+        header_up Host {host}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-For {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+    
+    # Routes API vers le backend
+    handle /api/* {
+        reverse_proxy pandorabox:3001 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+    
+    # Support WebSocket
+    handle /socket.io/* {
+        reverse_proxy pandorabox:3001 {
+            header_up Host {host}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-For {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Connection {>Connection}
+            header_up Upgrade {>Upgrade}
+        }
+    }
+}
+
+# Redirection HTTP → HTTPS
+http://31.97.69.92 {
+    redir https://31.97.69.92{uri} permanent
+}

@@ -59,7 +59,7 @@ export const useMessages = (
       setSendError(null)
 
       try {
-        const response = await axios.get(`http://localhost:3001/api/conversations/${conversationUUID}`)
+        const response = await axios.get(`http://31.97.69.92:3001/api/conversations/${conversationUUID}`)
         if (response.data && response.data.messages && Array.isArray(response.data.messages)) {
           const fetchedMessages: AppMessage[] = response.data.messages.map((msg: any) => ({
             id: msg.message_id || msg.id,
@@ -80,11 +80,11 @@ export const useMessages = (
           if (fetchedMessages.length === 0) {
             console.log(`Aucun message trouvé pour la conversation ${conversationUUID}, tentative de synchronisation...`)
             try {
-              const syncResponse = await axios.post(`http://localhost:3001/api/whatsapp/sync-conversation/${conversationUUID}`)
+              const syncResponse = await axios.post(`http://31.97.69.92:3001/api/whatsapp/sync-conversation/${conversationUUID}`)
               if (syncResponse.data.success && syncResponse.data.newMessagesSaved > 0) {
                 console.log(`Synchronisation réussie: ${syncResponse.data.newMessagesSaved} messages récupérés`)
                 // Recharger les messages après synchronisation
-                const retryResponse = await axios.get(`http://localhost:3001/api/conversations/${conversationUUID}`)
+                const retryResponse = await axios.get(`http://31.97.69.92:3001/api/conversations/${conversationUUID}`)
                 if (retryResponse.data && retryResponse.data.messages && Array.isArray(retryResponse.data.messages)) {
                   const syncedMessages: AppMessage[] = retryResponse.data.messages.map((msg: any) => ({
                     id: msg.message_id || msg.id,

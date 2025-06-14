@@ -24,7 +24,7 @@ interface AppMessage {
 // Function to update conversation state via API (can be moved to a service)
 const updateConversationStateAPI = async (conversationId: string, newState: string) => {
   try {
-    const response = await axios.patch(`http://localhost:3001/api/conversations/${conversationId}/state`, {
+    const response = await axios.patch(`http://31.97.69.92:3001/api/conversations/${conversationId}/state`, {
       state: newState,
     })
     return response.data.success
@@ -52,7 +52,7 @@ export const useConversations = () => {
     setLoadingDbConversations(true)
     setError(null)
     try {
-      const response = await axios.get(`http://localhost:3001/api/conversations?page=${page}&limit=${limit}`)
+      const response = await axios.get(`http://31.97.69.92:3001/api/conversations?page=${page}&limit=${limit}`)
       if (response.data && Array.isArray(response.data.conversations)) {
         const dbChatGroups: ChatGroup[] = response.data.conversations.map((conv: any) => ({
           id: conv.id,

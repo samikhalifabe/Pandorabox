@@ -4,7 +4,6 @@ import type React from "react"
 
 import { useState, useEffect } from "react"
 import axios from "axios"
-import { QRCodeCanvas } from "qrcode.react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -12,11 +11,13 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Loader2, Send, QrCode, Smartphone, AlertCircle, CheckCircle, RefreshCw, MessageSquare } from "lucide-react"
+import { Loader2, Send, QrCode, Smartphone, AlertCircle, CheckCircle, RefreshCw, MessageSquare, ExternalLink } from "lucide-react"
 import { useWhatsApp } from "./WhatsAppContext"
+import { WhatsAppQRCode } from "./WhatsAppQRCode"
 import MessageList from "./MessageList"
 import { supabase } from "@/lib/supabase"
 import type { Database } from "@/types/supabase"
+import Link from "next/link"
 
 type Vehicle = Database["public"]["Tables"]["vehicles"]["Row"]
 
@@ -29,13 +30,40 @@ const WhatsAppInterface = () => {
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null)
   const [loadingVehicle, setLoadingVehicle] = useState(false)
+  const [isInitializing, setIsInitializing] = useState(false)
 
-  const BASE_URL = "http://localhost:3001/api/whatsapp"
+  const BASE_URL = process.env.NEXT_PUBLIC_BACKEND_URL 
+    ? `${process.env.NEXT_PUBLIC_BACKEND_URL}/api/whatsapp`
+    : (typeof window !== 'undefined' && window.location.hostname !== 'localhost' 
+      ? "/api/whatsapp" 
+      : "http://localhost:3001/api/whatsapp")
 
   const handleRefreshStatus = async () => {
     setIsRefreshing(true)
     await refreshStatus()
     setIsRefreshing(false)
+  }
+
+  const handleInitializeWhatsApp = async () => {
+    setIsInitializing(true)
+    try {
+      const response = await axios.post(`${BASE_URL}/initialize`)
+      if (response.data.success) {
+        setResult({ success: true, message: "WhatsApp initialisé avec succès" })
+        // Rafraîchir le statut après initialisation
+        setTimeout(() => refreshStatus(), 2000)
+      } else {
+        setResult({ success: false, message: "Échec de l'initialisation" })
+      }
+    } catch (error: any) {
+      console.error("Erreur lors de l'initialisation:", error)
+      setResult({ 
+        success: false, 
+        message: error.response?.data?.details || "Erreur lors de l'initialisation de WhatsApp" 
+      })
+    } finally {
+      setIsInitializing(false)
+    }
   }
 
   // Fonction pour trouver un véhicule par numéro de téléphone
@@ -148,18 +176,75 @@ const WhatsAppInterface = () => {
           )}
         </div>
 
-        {status === "disconnected" && qrCode && (
-          <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-slate-50 dark:bg-slate-900">
-            <div className="flex items-center gap-2 mb-4 text-lg font-medium">
-              <QrCode className="h-5 w-5" />
-              <h2>Scannez ce QR code avec WhatsApp</h2>
-            </div>
-            <div className="bg-white p-4 rounded-lg shadow-sm">
-              <QRCodeCanvas value={qrCode} size={256} />
-            </div>
-            <p className="mt-4 text-sm text-muted-foreground text-center">
-              Ouvrez WhatsApp sur votre téléphone &gt; Menu &gt; WhatsApp Web &gt; Scanner le code QR
+        {status === "disconnected" && !qrCode && (
+          <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-slate-50 dark:bg-slate-900 mb-6">
+            <AlertCircle className="h-8 w-8 text-orange-500 mb-2" />
+            <p className="text-sm text-muted-foreground mb-4 text-center">
+              WhatsApp n'est pas initialisé. Cliquez sur le bouton ci-dessous pour démarrer la connexion.
             </p>
+            <Button 
+              onClick={handleInitializeWhatsApp} 
+              disabled={isInitializing}
+              className="bg-[#25D366] hover:bg-[#128C7E]"
+            >
+              {isInitializing ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Initialisation...
+                </>
+              ) : (
+                <>
+                  <Smartphone className="h-4 w-4 mr-2" />
+                  Initialiser WhatsApp
+                </>
+              )}
+            </Button>
+          </div>
+        )}
+
+        {status === "disconnected" && (
+          <div className="mb-6 space-y-4">
+            <div className="flex flex-col items-center justify-center p-6 border rounded-lg bg-slate-50 dark:bg-slate-900">
+              <QrCode className="h-8 w-8 text-[#25D366] mb-3" />
+              <h3 className="text-lg font-medium mb-2">Connexion WhatsApp requise</h3>
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                Pour envoyer des messages, vous devez d'abord connecter votre WhatsApp
+              </p>
+              <div className="flex gap-3">
+                <Link href="/whatsapp-connection">
+                  <Button className="bg-[#25D366] hover:bg-[#128C7E]">
+                    <QrCode className="h-4 w-4 mr-2" />
+                    Scanner le QR Code
+                    <ExternalLink className="h-3 w-3 ml-2" />
+                  </Button>
+                </Link>
+                <Button variant="outline" onClick={handleInitializeWhatsApp} disabled={isInitializing}>
+                  {isInitializing ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Initialisation...
+                    </>
+                  ) : (
+                    <>
+                      <Smartphone className="h-4 w-4 mr-2" />
+                      Initialiser
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+            
+            {qrCode && (
+              <div className="max-w-sm mx-auto">
+                <WhatsAppQRCode
+                  qrCode={qrCode}
+                  status={status}
+                  onRefresh={handleRefreshStatus}
+                  isRefreshing={isRefreshing}
+                  lastChecked={lastChecked}
+                />
+              </div>
+            )}
           </div>
         )}
 

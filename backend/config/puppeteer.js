@@ -124,10 +124,11 @@ function findChromePath() {
 }
 
 function getPuppeteerOptions() {
-  const chromePath = findChromePath();
+  // Defer Chrome path finding until actually needed
+  let chromePath = null;
 
   const options = {
-    headless: process.env.NODE_ENV === 'production', // Use headless in production
+    headless: process.env.NODE_ENV === 'production' || process.env.PUPPETEER_HEADLESS === 'true', // Use headless in production or when explicitly set
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -150,14 +151,60 @@ function getPuppeteerOptions() {
     ],
   };
 
-  // Add executablePath if found
-  if (chromePath) {
-    options.executablePath = chromePath;
-  } else {
-     logger.warn('Chrome executable path not found. Puppeteer might download a compatible Chromium binary.');
+  // Configuration spéciale pour Docker pour éviter les conflits de profil
+  if (process.env.DOCKER_ENV === 'true') {
+    options.args.push(
+      '--disable-background-timer-throttling',
+      '--disable-backgrounding-occluded-windows',
+      '--disable-renderer-backgrounding',
+      '--disable-web-security',
+      '--disable-features=TranslateUI,BlinkGenPropertyTrees',
+      '--remote-debugging-port=0',
+      '--disable-session-crashed-bubble',
+      '--disable-infobars',
+      '--no-crash-upload',
+      '--disable-crash-reporter',
+      '--single-process',
+      '--force-device-scale-factor=1',
+      '--disable-features=VizDisplayCompositor'
+    );
+    
+    // Utiliser un répertoire temporaire unique pour éviter les conflits
+    const tmpUserDataDir = `/tmp/chrome-${Date.now()}-${Math.random().toString(36).substring(7)}`;
+    options.userDataDir = tmpUserDataDir;
+    logger.info(`Docker environment: using temporary user data directory: ${tmpUserDataDir}`);
   }
 
-  // Configurations spécifiques à Windows
+  // Find Chrome path only when needed and not in Docker
+  if (process.env.DOCKER_ENV !== 'true') {
+    chromePath = findChromePath();
+    
+    // Add executablePath if found
+    if (chromePath) {
+      options.executablePath = chromePath;
+    } else {
+       logger.warn('Chrome executable path not found. Puppeteer might download a compatible Chromium binary.');
+    }
+  } else {
+    // In Docker, use the detected Chrome path
+    const dockerChromePath = findChromePath();
+    if (dockerChromePath) {
+      options.executablePath = dockerChromePath;
+      logger.info(`Docker environment: using detected Chrome at ${dockerChromePath}`);
+    } else {
+      // Fallback to common Docker Chrome paths
+      const fallbackPaths = ['/usr/bin/google-chrome', '/usr/bin/chromium-browser'];
+      for (const fallbackPath of fallbackPaths) {
+        if (fs.existsSync(fallbackPath)) {
+          options.executablePath = fallbackPath;
+          logger.info(`Docker environment: using fallback Chrome at ${fallbackPath}`);
+          break;
+        }
+      }
+    }
+  }
+
+  // Configurations spécifiques à Windows et Docker
   if (os.platform() === 'win32') {
     const userDataDir = process.env.WHATSAPP_USER_DATA_DIR ||
                          path.join(os.homedir(), 'AppData', 'Local', 'WhatsAppAutomation', 'UserData');
@@ -174,6 +221,8 @@ function getPuppeteerOptions() {
       logger.error(`Failed to create Windows user data directory ${userDataDir}: ${err.message}`);
     }
   }
+
+  // Note: Configuration Docker déjà gérée ci-dessus
 
   return options;
 }

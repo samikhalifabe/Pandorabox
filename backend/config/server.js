@@ -15,7 +15,14 @@ const server = http.createServer(app);
 
 // Configuration CORS plus permissive
 const corsOptions = {
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: [
+    'http://localhost:3000', 
+    'http://127.0.0.1:3000',
+    'http://localhost:8080',
+    'http://127.0.0.1:8080',
+    'http://31.97.69.92:8080',
+    'http://31.97.69.92:3000'
+  ],
   methods: ['GET', 'POST', 'OPTIONS', 'PATCH'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true

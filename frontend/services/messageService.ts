@@ -48,7 +48,7 @@ export async function sendWhatsAppMessage(
   try {
     // Send the WhatsApp message via the API
     console.log("Attempting to send message via backend API...");
-    const response = await axios.post("http://localhost:3001/api/whatsapp/send", {
+    const response = await axios.post("/api/whatsapp/send", {
       number: phone,
       message,
       vehicleId: vehicle?.id, // Optional vehicleId
@@ -88,7 +88,7 @@ export async function sendWhatsAppMessage(
  */
 export async function getConversations(): Promise<FormattedConversation[]> {
   try {
-    const response = await axios.get("http://localhost:3001/api/conversations")
+    const response = await axios.get("/api/conversations")
     return response.data || []
   } catch (error) {
     console.error("Error fetching conversations:", error)
@@ -101,7 +101,7 @@ export async function getConversations(): Promise<FormattedConversation[]> {
  */
 export async function getConversation(conversationId: string): Promise<FormattedConversation> {
   try {
-    const response = await axios.get(`http://localhost:3001/api/conversations/${conversationId}`)
+    const response = await axios.get(`/api/conversations/${conversationId}`)
     return response.data
   } catch (error) {
     console.error("Error fetching conversation:", error)
